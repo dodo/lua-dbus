@@ -15,14 +15,18 @@ if not awesome then dbus.init() end
 local function on_signal (...)
     -- react on signal here
 end
+
 local signal_opts = {
     bus = 'session' or 'system',
     interface = 'org.freedesktop.DBus', -- or something appropriate ;)
 }
+-- add signal handler
 dbus.on('Signal', on_signal, signal_opts)
 
+-- remove signal handler
 dbus.off('Signal', on_signal, signal_opts)
 
+-- call a method
 dbus.call('Method', function (...)
     -- react on method return results here
 end, {
