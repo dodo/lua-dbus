@@ -59,8 +59,6 @@ end
 
 function dbus.process_request(req)
     if not req then return end
-    print(req.signal.bus, req.signal.type, req.signal.interface, req.signal.path, req.signal.member, req.signal.sender, req.signal.destination, req.signal.signature, req.signal.serial, req.signal.reply, req.args)
-    if _it and process.repl then pprint((req.args)) end
     if req.signal.reply > 0 then
         local callback = dbus.callbacks[req.signal.reply]
         local key = string.format("reply %d", req.signal.reply)
