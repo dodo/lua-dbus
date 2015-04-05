@@ -39,6 +39,7 @@ if process then
             bus = 'session',
         })
 
+        print "call method2"
         dbus.call('forceOnNetworkChange', function (...)
             print("forceOnNetworkChange", ...)
         end, {
@@ -47,10 +48,19 @@ if process then
             path = '/modules/kdeconnect',
             bus = 'session',
         })
+
+        print "list property changes"
+        dbus.property.on('PlaybackStatus', function (status)
+            print("PlaybackStatus changed", status)
+        end, {
+            interface = 'org.mpris.MediaPlayer2.Player',
+            sender = 'org.mpris.MediaPlayer2.clementine',
+        })
     end
+    process:on('exit', dbus.exit)
 else
     while true do
         loop()
     end
+    dbus.exit()
 end
-dbus.exit()
