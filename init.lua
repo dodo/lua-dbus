@@ -1,5 +1,6 @@
 
 local dbus = {
+    property = {},
     raw = require("lua-dbus.awesome"),
     signals = { system = {}, session = {} },
 }
@@ -19,9 +20,26 @@ function dbus.signal_handler(signal, ...)
     signal.events = ((dbus.signals[signal.bus] or {})[signal.interface] or {}).events
     if not signal.events then return end
     for _, callback in ipairs(signal.events[signal.member] or {}) do
+        if type(callback) == 'table' then
+            callback = callback.handler
+        end
         callback(...)
     end
+    if signal.type == 'signal' then
+        for _, event in pairs(signal.events) do
+            if event.name == signal.member and event.owner == signal.sender then
+                for _, callback in ipairs(event) do
+                    if type(callback) == 'table' then
+                        callback = callback.handler
+                    end
+                    callback(...)
+                end
+                break
+            end
+        end
+    end
 end
+
 
 function dbus.on(name, callback, opts)
     opts = opts or {}
@@ -40,19 +58,68 @@ function dbus.on(name, callback, opts)
         dbus.raw.connect_signal(signal.interface, signal.handler)
         dbus.signals[opts.bus][signal.interface] = signal
     end
+    -- FIXME cleanup this mess
     if signal.events then
-        local  event = signal.events[name]
+        local evname = name
+        if opts.sender then
+            evname = string.format("%s.%s", opts.sender, evname)
+        end
+        local  event = not opts.sender and signal.events[evname]
         if not event then
-            event = { match = string.format(
+            event = { name = name, match = string.format(
                 "type='%s',interface='%s',member='%s'",
                 opts.type, signal.interface, name)}
-            signal.events[name] = event
-            signal.len = signal.len + 1
-            dbus.raw.add_match(opts.bus, event.match)
+            if opts.destination then
+                event.match = string.format(
+                    "%s,destination='%s'",
+                    event.match, opts.destination)
+            end
+            if not opts.sender then
+                signal.events[evname] = event
+                signal.len = signal.len + 1
+                dbus.raw.add_match(opts.bus, event.match)
+            else
+                dbus.call('GetNameOwner', function (owner)
+                    if signal.events[evname .. owner] then
+                        event = signal.events[evname .. owner]
+                    else
+                        signal.events[evname .. owner] = event
+                        signal.len = signal.len + 1
+                        event.owner = owner
+                        event.match = string.format(
+                            "sender='%s',%s",
+                            owner, event.match)
+                        dbus.raw.add_match(opts.bus, event.match)
+                    end
+                    if opts.origin then
+                        table.insert(event, {
+                            handler = callback,
+                            origin = opts.origin,
+                        })
+                    else
+                        table.insert(event, callback)
+                    end
+                end, { args = {'s', opts.sender},
+                    path = '/',
+                    bus  = opts.bus,
+                    destination = 'org.freedesktop.DBus',
+                    interface   = 'org.freedesktop.DBus',
+                })
+            end
         end
-        table.insert(event, callback)
+        if not opts.sender then
+            if opts.origin then
+                table.insert(event, {
+                    handler = callback,
+                    origin = opts.origin,
+                })
+            else
+                table.insert(event, callback)
+            end
+        end
     end
 end
+
 
 function dbus.off(name, callback, opts)
     opts = opts or {}
@@ -71,6 +138,7 @@ function dbus.off(name, callback, opts)
     local event = signal.events[name]
     if not event then return false end
     for i, cb in ipairs(event) do
+        if type(cb) == 'table' then cb = cb.origin end
         if cb == callback then
             table.remove(event, i)
             if #event == 0 then
@@ -89,9 +157,10 @@ function dbus.off(name, callback, opts)
     return false
 end
 
+
 function dbus.call(name, callback, opts)
     if not dbus.raw.call_method then return end
-    if type(callback) ~= 'function' then
+    if callback and type(callback) ~= 'function' then
         callback, opts = nil, callback
     end
     opts = opts or {}
