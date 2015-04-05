@@ -187,4 +187,47 @@ function dbus.call(name, callback, opts)
 end
 
 
+function dbus.property.get(name, callback, opts)
+    opts = opts or {}
+    opts.args = {'s', opts.interface, 's', name} -- actual arguments to Get
+    opts.interface = 'org.freedesktop.DBus.Properties'
+    callback = callback or opts.callback
+    return dbus.call('Get', callback, opts)
+end
+
+
+function dbus.property.set(name, value, opts)
+    opts = opts or {}
+    opts.args = {'s', opts.interface, 's', name, 'v', value} -- actual arguments to Get
+    opts.interface = 'org.freedesktop.DBus.Properties'
+    return dbus.call('Set', opts)
+end
+
+
+function dbus.property.on(name, callback, opts)
+    opts = opts or {}
+    return dbus.on('PropertiesChanged', function (iface, values)
+        if iface == opts.interface then
+            local value = values[name]
+            if value then
+                callback(value)
+            end
+        end
+    end, {
+        origin = callback,
+        bus = opts.bus, type = opts.type,
+        sender = opts.sender, destination = opts.destination,
+        interface = 'org.freedesktop.DBus.Properties',
+    })
+end
+
+
+function dbus.property.off(name, callback, opts)
+    return dbus.off('PropertiesChanged', callback, {
+        bus = opts.bus, type = opts.type,
+        interface = 'org.freedesktop.DBus.Properties',
+    })
+end
+
+
 return dbus
