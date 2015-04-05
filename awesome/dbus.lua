@@ -99,12 +99,21 @@ function dbus.iter_args(iter, alltype)
         if not typ then
             args.len = args.len + 1
             args[args.len] = nil
-        elseif typ == ldbus.types.variant or typ == ldbus.types.dict_entry then
+        elseif typ == ldbus.types.variant then
             local nargs = dbus.iter_args(iter:recurse())
             for i = 1, nargs.len do
                 args[args.len + i] = nargs[i]
             end
             args.len = args.len + nargs.len
+        elseif typ == ldbus.types.dict_entry then
+            local nargs = dbus.iter_args(iter:recurse())
+            local kwargs = {}
+            for i = 1, nargs.len, 2 do
+                kwargs[nargs[i]] = nargs[i + 1]
+            end
+            args.packed = true
+            args.len = args.len + 1
+            args[args.len] = kwargs
         elseif typ == ldbus.types.struct then
             local nargs = dbus.iter_args(iter:recurse())
             args.len = args.len + 1
@@ -123,7 +132,11 @@ function dbus.iter_args(iter, alltype)
             break
         end
     end
-    return args
+    if args.packed then
+        return unpack(args)
+    else
+        return args
+    end
 end
 
 function dbus.get_bus(name)
