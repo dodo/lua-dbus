@@ -40,6 +40,16 @@ function dbus.signal_handler(signal, ...)
     end
 end
 
+function dbus.owner(iface, callback, opts)
+    opts = opts or {}
+    return dbus.call('GetNameOwner', callback, { args = {'s', iface},
+        path = '/',
+        bus  = opts.bus, type = opts.type,
+        destination = 'org.freedesktop.DBus',
+        interface   = 'org.freedesktop.DBus',
+    })
+end
+
 
 function dbus.on(name, callback, opts)
     opts = opts or {}
@@ -58,13 +68,12 @@ function dbus.on(name, callback, opts)
         dbus.raw.connect_signal(signal.interface, signal.handler)
         dbus.signals[opts.bus][signal.interface] = signal
     end
-    -- FIXME cleanup this mess
     if signal.events then
         local evname = name
         if opts.sender then
-            evname = string.format("%s.%s", opts.sender, evname)
+            evname = evname .. opts.sender
         end
-        local  event = not opts.sender and signal.events[evname]
+        local  event = signal.events[evname]
         if not event then
             event = { name = name, match = string.format(
                 "type='%s',interface='%s',member='%s'",
@@ -74,48 +83,23 @@ function dbus.on(name, callback, opts)
                     "%s,destination='%s'",
                     event.match, opts.destination)
             end
-            if not opts.sender then
-                signal.events[evname] = event
-                signal.len = signal.len + 1
-                dbus.raw.add_match(opts.bus, event.match)
-            else
-                dbus.call('GetNameOwner', function (owner)
-                    if signal.events[evname .. owner] then
-                        event = signal.events[evname .. owner]
-                    else
-                        signal.events[evname .. owner] = event
-                        signal.len = signal.len + 1
-                        event.owner = owner
-                        event.match = string.format(
-                            "sender='%s',%s",
-                            owner, event.match)
-                        dbus.raw.add_match(opts.bus, event.match)
-                    end
-                    if opts.origin then
-                        table.insert(event, {
-                            handler = callback,
-                            origin = opts.origin,
-                        })
-                    else
-                        table.insert(event, callback)
-                    end
-                end, { args = {'s', opts.sender},
-                    path = '/',
-                    bus  = opts.bus,
-                    destination = 'org.freedesktop.DBus',
-                    interface   = 'org.freedesktop.DBus',
-                })
+            if opts.sender then
+                event.owner = opts.sender
+                event.match = string.format(
+                    "sender='%s',%s",
+                    opts.sender, event.match)
             end
+            signal.events[evname] = event
+            signal.len = signal.len + 1
+            dbus.raw.add_match(opts.bus, event.match)
         end
-        if not opts.sender then
-            if opts.origin then
-                table.insert(event, {
-                    handler = callback,
-                    origin = opts.origin,
-                })
-            else
-                table.insert(event, callback)
-            end
+        if opts.origin then
+            table.insert(event, {
+                handler = callback,
+                origin = opts.origin,
+            })
+        else
+            table.insert(event, callback)
         end
     end
 end

@@ -12,6 +12,10 @@ dbus.on('StatusChanged', function (status, data)
     end
 end, { bus = 'system', interface = 'org.wicd.daemon' })
 
+dbus.on('NameOwnerChanged', function (...)
+    print("NameLost", ...)
+end, { bus = 'session', interface = 'org.freedesktop.DBus' })
+
 print "loop"
 
 local loop = function ()
