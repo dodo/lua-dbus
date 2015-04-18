@@ -149,7 +149,7 @@ end
 
 -- awesome dbus api
 
-function dbus.request_name()
+function dbus.request_name(bus_name, name)
     local bus = dbus.get_bus(bus_name)
     if not bus then return end
     return ({
