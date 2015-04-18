@@ -79,7 +79,12 @@ function dbus.process_request(req)
             if signal.name == req.signal.interface then
                 local ret = {signal.callback(req.signal, unpack(req.args))}
                 local reply = req.message:new_method_return()
-                local iter = reply:iter_init_append(req.iter)
+                local iter
+                if req.iter then
+                    iter = reply:iter_init_append(req.iter)
+                else
+                    iter = reply:iter_init_append()
+                end
                 for _, val in ipairs(ret) do
                     iter:append_basic(val)
                 end
