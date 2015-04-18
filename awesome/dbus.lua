@@ -85,8 +85,12 @@ function dbus.process_request(req)
                 else
                     iter = reply:iter_init_append()
                 end
-                for _, val in ipairs(ret) do
-                    iter:append_basic(val)
+
+                for i=1,#ret,2 do
+                    local typ, val = ret[i], ret[i+1]
+                    if typ and val ~= nil then
+                        dbus.append_arg(iter, val, typ)
+                    end
                 end
                 req.bus:send(reply)
                 return true -- there can be only ONE handler to send reply
@@ -142,6 +146,68 @@ function dbus.iter_args(iter, alltype)
     else
         return args
     end
+end
+
+function dbus.type(value)
+    local luatyp, typ = type(value)
+    if luatyp == 'boolean' then
+        typ = ldbus.types.boolean
+    elseif luatyp == 'string' then
+        typ = ldbus.types.string
+    elseif luatyp == 'number' then
+        typ = ldbus.types.double
+    elseif luatyp == 'table' then
+        if #value > 0 then
+            local subtyp = dbus.type(value[1])
+            for i = 2, #value do
+                if subtyp ~= dbus.type(value[i]) then
+                    subtyp = ldbus.types.variant
+                    break
+                end
+            end
+            typ = 'a' .. subtyp
+        else
+            typ = 'a{sv}'
+        end
+    end
+    return typ
+end
+
+function dbus.append_arg(iter, value, typ, subtyp)
+    for _, v in pairs(ldbus.basic_types) do
+        if v == typ then
+            iter:append_basic(value, typ)
+            return
+        end
+    end
+    local subiter
+    if string.sub(typ, 1, 1) == ldbus.types.array then
+        local subtyp = string.sub(typ, 2)
+        subiter = iter:open_container(string.sub(typ, 1, 1), subtyp)
+        if string.sub(subtyp, 1, 1) ~= '{' then
+            for _, v in ipairs(value) do
+                dbus.append_arg(subiter, v, subtyp)
+            end
+        else
+            subtyp = subtyp:match('{(%w+)}')
+            for k, v in pairs(value) do
+                dbus.append_arg(subiter, {k,v}, ldbus.types.dict_entry, subtyp)
+            end
+        end
+    elseif typ == ldbus.types.variant then
+        local subtyp = dbus.type(value)
+        subiter = iter:open_container(string.sub(typ, 1, 1), subtyp)
+        dbus.append_arg(subiter, value, subtyp)
+    else
+        subiter = iter:open_container(string.sub(typ, 1, 1))
+    end
+    if typ == ldbus.types.dict_entry then
+        dbus.append_arg(subiter, value[1], string.sub(subtyp, 1, 1))
+        dbus.append_arg(subiter, value[2], string.sub(subtyp, 2, 2))
+    elseif typ == ldbus.types.struct then
+        -- TODO
+    end
+    iter:close_container(subiter)
 end
 
 function dbus.get_bus(name)
@@ -207,7 +273,7 @@ function dbus.emit_signal(bus_name, path, iface, name, ...)
     for i=1,#args,2 do
         local typ, val = args[i], args[i+1]
         if typ and val then
-            iter:append_basic(val, typ)
+            dbus.append_arg(iter, val, typ)
         end
     end
     local ok = bus:send(msg)
@@ -226,7 +292,7 @@ function dbus.call_method(bus_name, dest, path, iface, method, ...)
     for i=1,#args,2 do
         local typ, val = args[i], args[i+1]
         if typ and val then
-            iter:append_basic(val, typ)
+            dbus.append_arg(iter, val, typ)
         end
     end
     local ok, serial = bus:send(msg)
