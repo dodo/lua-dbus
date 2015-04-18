@@ -201,7 +201,7 @@ function dbus.property.on(name, callback, opts)
     return dbus.on('PropertiesChanged', function (iface, values)
         if iface == opts.interface then
             local value = values[name]
-            if value then
+            if value ~= nil then
                 callback(value)
             end
         end
