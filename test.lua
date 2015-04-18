@@ -4,16 +4,16 @@ print "init"
 dbus.init()
 
 print "listen"
-dbus.on('StatusChanged', function (status, data)
-    if _it then
-        print('StatusChanged', status, require('util').dump(data))
-    else
-        print('StatusChanged', status, data)
-    end
-end, { bus = 'system', interface = 'org.wicd.daemon' })
+-- dbus.on('StatusChanged', function (status, data)
+--     if _it then
+--         print('StatusChanged', status, require('util').dump(data))
+--     else
+--         print('StatusChanged', status, data)
+--     end
+-- end, { bus = 'system', interface = 'org.wicd.daemon' })
 
 dbus.on('NameOwnerChanged', function (...)
-    print("NameLost", ...)
+    print("NameOwnerChanged", ...)
 end, { bus = 'session', interface = 'org.freedesktop.DBus' })
 
 print "loop"
@@ -60,6 +60,8 @@ if process then
             interface = 'org.mpris.MediaPlayer2.Player',
             sender = 'org.mpris.MediaPlayer2.clementine',
         })
+
+        foobar = require('lua-dbus.interface').test()
     end
     process:on('exit', dbus.exit)
 else
