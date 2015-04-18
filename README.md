@@ -2,7 +2,7 @@
 
 Convenient dbus api in lua.
 
-Works in [awesome](https://awesome.naquadah.org/) or with [ldbus](https://github.com/daurnimator/ldbus/).
+Works in [awesome](https://awesome.naquadah.org/) or with [ldbus](https://github.com/dodo/ldbus/).
 
 ## usage
 
