@@ -52,9 +52,15 @@ end
 
 
 function dbus.on(name, callback, opts)
+    if type(name) == 'table' then
+        name, callback, opts = '', nil, name
+    elseif callback and type(callback) ~= 'function' then
+        callback, opts = nil, callback
+    end
     opts = opts or {}
     opts.type = opts.type or "signal"
     opts.bus = opts.bus or "session"
+    callback = callback or opts.callback
     if not opts.interface then error("opts.interface is missing!") end
     local  signal = dbus.signals[opts.bus][opts.interface]
     if not signal then
@@ -93,13 +99,15 @@ function dbus.on(name, callback, opts)
             signal.len = signal.len + 1
             dbus.raw.add_match(opts.bus, event.match)
         end
-        if opts.origin then
-            table.insert(event, {
-                handler = callback,
-                origin = opts.origin,
-            })
-        else
-            table.insert(event, callback)
+        if callback then
+            if opts.origin then
+                table.insert(event, {
+                    handler = callback,
+                    origin = opts.origin,
+                })
+            else
+                table.insert(event, callback)
+            end
         end
     end
 end
