@@ -7,7 +7,7 @@ description = {
    homepage = "https://github.com/dodo/lua-dbus",
    license = "MIT",
 }
-dependencies = {}
+dependencies = { "lua >= 5.1", "ldbus > scm-0" }
 build = {
    type = "builtin",
    modules = {
