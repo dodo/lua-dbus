@@ -7,13 +7,13 @@ description = {
    homepage = "https://github.com/dodo/lua-dbus",
    license = "MIT",
 }
-dependencies = { "lua >= 5.1", "ldbus > scm-0" }
+dependencies = { "lua >= 5.1", "ldbus >= scm-0" }
 build = {
    type = "builtin",
    modules = {
-      awesome = "awesome/init.lua",
-      ['awesome.dbus'] = "awesome/dbus.lua",
-      init = "init.lua",
-      interface = "interface.lua",
+      ['lua-dbus.awesome'] = "awesome/init.lua",
+      ['lua-dbus.awesome.dbus'] = "awesome/dbus.lua",
+      ['lua-dbus.init'] = "init.lua",
+      ['lua-dbus.interface'] = "interface.lua",
    }
 }
