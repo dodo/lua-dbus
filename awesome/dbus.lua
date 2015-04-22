@@ -1,6 +1,8 @@
 -- implementing awesome dbus api with ldbus
 
 local ldbus = require "ldbus"
+ldbus.basic_types.double = 'd'
+ldbus.types.double = 'd'
 
 local dbus = {}
 
