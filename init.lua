@@ -17,6 +17,22 @@ else
     dbus.exit = dbus.raw.exit
 end
 
+local function optscopy(opts)
+    if type(opts) ~= "table" then return nil end
+    return {
+        args = opts.args,
+        bus = opts.bus,
+        callback = opts.callback,
+        destination = opts.destination,
+        handler = opts.handler,
+        interface = opts.interface,
+        origin = opts.origin,
+        path = opts.path,
+        sender = opts.sender,
+        type = opts.type,
+    }
+end
+
 function dbus.signal_handler(signal, ...)
     signal.events = ((dbus.signals[signal.bus] or {})[signal.interface] or {}).events
     if not signal.events then return end
@@ -58,7 +74,7 @@ function dbus.on(name, callback, opts)
     elseif callback and type(callback) ~= 'function' then
         callback, opts = nil, callback
     end
-    opts = opts or {}
+    local opts = optscopy(opts) or {}
     opts.type = opts.type or "signal"
     opts.bus = opts.bus or "session"
     callback = callback or opts.callback
@@ -115,7 +131,7 @@ end
 
 
 function dbus.off(name, callback, opts)
-    opts = opts or {}
+    local opts = optscopy(opts) or {}
     opts.type = opts.type or "signal"
     opts.bus = opts.bus or "session"
     local signal = (dbus.signals[opts.bus] or {})[opts.interface]
@@ -156,7 +172,7 @@ function dbus.call(name, callback, opts)
     if callback and type(callback) ~= 'function' then
         callback, opts = nil, callback
     end
-    opts = opts or {}
+    local opts = optscopy(opts) or {}
     opts.type = opts.type or "method_call"
     opts.bus = opts.bus or "session"
     callback = callback or opts.callback
@@ -179,9 +195,8 @@ function dbus.call(name, callback, opts)
     return serial
 end
 
-
 function dbus.property.get(name, callback, opts)
-    opts = opts or {}
+    local opts = optscopy(opts) or {}
     opts.args = {'s', opts.interface, 's', name} -- actual arguments to Get
     opts.interface = 'org.freedesktop.DBus.Properties'
     callback = callback or opts.callback
@@ -190,7 +205,7 @@ end
 
 
 function dbus.property.set(name, value, opts)
-    opts = opts or {}
+    local opts = optscopy(opts) or {}
     opts.args = {'s', opts.interface, 's', name, 'v', value} -- actual arguments to Get
     opts.interface = 'org.freedesktop.DBus.Properties'
     return dbus.call('Set', opts)
