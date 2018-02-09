@@ -175,41 +175,69 @@ function dbus.type(value)
     return typ
 end
 
-function dbus.append_arg(iter, value, typ, subtyp)
-    for _, v in pairs(ldbus.basic_types) do
-        if v == typ then
-            iter:append_basic(value, typ)
-            return
-        end
+dbus.set_of_basic_types = {}
+for _, v in pairs (ldbus.basic_types) do
+    dbus.set_of_basic_types[v] = true
+end
+
+function dbus.consume_type(dtype)
+    if not dtype then
+        return nil
     end
-    local subiter
-    if string.sub(typ, 1, 1) == ldbus.types.array then
-        local subtyp = string.sub(typ, 2)
-        subiter = iter:open_container(string.sub(typ, 1, 1), subtyp)
-        if string.sub(subtyp, 1, 1) ~= '{' then
-            for _, v in ipairs(value) do
-                dbus.append_arg(subiter, v, subtyp)
+    local fchar = dtype:sub(1, 1)
+    if fchar == "{" then
+        assert(dtype:sub(-1) == "}")
+        return ldbus.types.dict_entry, dtype:sub(2, -2)
+    elseif dbus.set_of_basic_types[fchar] or fchar == ldbus.types.array then
+        return fchar, dtype:sub(2)
+    elseif fchar == ldbus.types.variant then
+        return fchar, nil -- The type of a variant can't be detected
+    end
+    error("structs unimplemented for now, type: "..dtype, 2)
+end
+
+local function error_on(condition, text, lvl)
+    if condition then
+        error(text, lvl and lvl + 1 or 2)
+    end
+end
+
+function dbus.append_arg(iter, value, dbus_type)
+    local dt, dt_next = dbus.consume_type(dbus_type)
+    if dbus.set_of_basic_types[dt] then
+        error_on(type(value) == "table", "expected a basic type, got a table")
+        iter:append_basic(value, dt)
+    elseif dt == ldbus.types.array then
+        error_on(type(value) ~= "table", "expected a table")
+        local arr_iter            = iter:open_container(dt, dt_next)
+        local arr_dt, arr_dt_next = dbus.consume_type(dt_next)
+        if arr_dt == ldbus.types.dict_entry then
+             local key_dt, value_dt = dbus.consume_type(arr_dt_next)
+             error_on(
+                dbus.set_of_basic_types[key_dt] == nil,
+                "the key of a dict entry has to be a basic type"
+                )
+            for k, v in pairs(value) do
+                 local dict_iter = arr_iter:open_container(arr_dt)
+                 dict_iter:append_basic(k, key_dt)
+                 dbus.append_arg(dict_iter, v, value_dt)
+                 arr_iter:close_container(dict_iter)
             end
         else
-            subtyp = subtyp:match('{(%w+)}')
-            for k, v in pairs(value) do
-                dbus.append_arg(subiter, {k,v}, ldbus.types.dict_entry, subtyp)
+            for _, v in ipairs(value) do
+                 dbus.append_arg(arr_iter, v, dt_next)
             end
         end
-    elseif typ == ldbus.types.variant then
-        local subtyp = dbus.type(value)
-        subiter = iter:open_container(string.sub(typ, 1, 1), subtyp)
-        dbus.append_arg(subiter, value, subtyp)
+        iter:close_container(arr_iter)
+    elseif dt == ldbus.types.variant then
+        local val, var_dt = value, dbus.type(value)
+        local var_iter = iter:open_container(dt, var_dt)
+        dbus.append_arg(var_iter, val, var_dt)
+        iter:close_container(var_iter)
     else
-        subiter = iter:open_container(string.sub(typ, 1, 1))
+        error_on(dt == ldbus.types.dict_entry, "dict_entry outside of array")
+        error_on(dt == ldbus.types.struct, "structs are unsupported")
     end
-    if typ == ldbus.types.dict_entry then
-        dbus.append_arg(subiter, value[1], string.sub(subtyp, 1, 1))
-        dbus.append_arg(subiter, value[2], string.sub(subtyp, 2, 2))
-    elseif typ == ldbus.types.struct then
-        -- TODO
-    end
-    iter:close_container(subiter)
 end
 
 function dbus.get_bus(name)
