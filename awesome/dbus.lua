@@ -180,6 +180,13 @@ for _, v in pairs (ldbus.basic_types) do
     dbus.set_of_basic_types[v] = true
 end
 
+dbus.variant_mt = {}
+function dbus.new_variant(vtype, value)
+    assert(value)
+    vtype = vtype or dbus.type(value)
+    return setmetatable ({ t = vtype, v = value }, dbus.variant_mt)
+end
+
 function dbus.consume_type(dtype)
     if not dtype then
         return nil
@@ -230,7 +237,15 @@ function dbus.append_arg(iter, value, dbus_type)
         end
         iter:close_container(arr_iter)
     elseif dt == ldbus.types.variant then
-        local val, var_dt = value, dbus.type(value)
+        local val, var_dt
+        if type(value) == "table" and
+                getmetatable(value) == dbus.variant_mt then
+            val    = value.v
+            var_dt = value.t
+        else
+            val    = value
+            var_dt = dbus.type(value)
+        end
         local var_iter = iter:open_container(dt, var_dt)
         dbus.append_arg(var_iter, val, var_dt)
         iter:close_container(var_iter)
