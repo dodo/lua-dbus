@@ -102,52 +102,52 @@ function dbus.process_request(req)
     return true
 end
 
-function dbus.iter_args(iter, alltype)
-    local args = { len = 0 }
+function dbus.iter_args(iter, args_dst)
+    local args = args_dst or {}
     if not iter then return args end
-    typ = alltype or iter:get_arg_type()
-    while true do
-        if not typ then
-            args.len = args.len + 1
-            args[args.len] = nil
+    local typ = iter:get_arg_type()
+
+    while typ do
+        local nextval = {}
+        if typ == ldbus.types.array then
+            local arr_typ = iter:get_element_type()
+            if arr_typ == ldbus.types.dict_entry then
+                local arr_it = iter:recurse()
+                while arr_it:get_arg_type() do
+                    local de_it = arr_it:recurse()
+                    --assert (dbus.raw.set_of_basic_types[de_it:get_arg_type()])
+                    local key = de_it:get_basic()
+                    --assert (de_it:has_next()) --value is mandatory
+                    de_it:next()
+                    local val = dbus.iter_args(de_it)
+                    --assert(#val <= 1) --recursing on one dbus type
+                    nextval[key] = val[1]
+                    --assert (not de_it:has_next())
+                    arr_it:next()
+                end
+            elseif arr_typ then
+                local arr_it = iter:recurse()
+                while arr_it:get_arg_type() do
+                    -- more than one type can be returned, direct "nextval" write
+                    dbus.iter_args(arr_it, nextval)
+                    arr_it:next()
+                end
+            end
         elseif typ == ldbus.types.variant then
-            local nargs = dbus.iter_args(iter:recurse())
-            for i = 1, nargs.len do
-                args[args.len + i] = nargs[i]
-            end
-            args.len = args.len + nargs.len
-        elseif typ == ldbus.types.dict_entry then
-            local nargs = dbus.iter_args(iter:recurse())
-            local kwargs = {}
-            for i = 1, nargs.len, 2 do
-                kwargs[nargs[i]] = nargs[i + 1]
-            end
-            args.packed = true
-            args.len = args.len + 1
-            args[args.len] = kwargs
+            local val = dbus.iter_args(iter:recurse())
+            --assert(#val <= 1) --recursing on only one dbus type
+            nextval = val[1]
         elseif typ == ldbus.types.struct then
-            local nargs = dbus.iter_args(iter:recurse())
-            args.len = args.len + 1
-            args[args.len] = nargs
-        elseif typ == ldbus.types.array then
-            local nargs = dbus.iter_args(iter:recurse(), iter:get_element_type())
-            args.len = args.len + 1
-            args[args.len] = nargs
+            --struct representation is an array of "n" values
+            nextval = dbus.iter_args(iter:recurse())
         else
-            args.len = args.len + 1
-            args[args.len] = iter:get_basic()
+            nextval = iter:get_basic()
         end
-        if iter:next() then
-            typ = alltype or iter:get_arg_type()
-        else
-            break
-        end
+        table.insert(args, nextval)
+        iter:next()
+        typ = iter:get_arg_type()
     end
-    if args.packed then
-        return unpack(args)
-    else
-        return args
-    end
+    return args
 end
 
 function dbus.type(value)
