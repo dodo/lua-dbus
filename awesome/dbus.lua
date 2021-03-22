@@ -264,12 +264,16 @@ function dbus.disconnect_signal(name, callback)
     end
 end
 
-function dbus.emit_signal(bus_name, path, iface, name, ...)
+function dbus.emit_signal(bus_name, dest, path, iface, name, ...)
+    print('dbus.emit_signal', bus_name, dest, path, iface, name, ...)
     local args = {...}
     local bus = dbus.get_bus(bus_name)
     if not bus then return false end
     local msg = ldbus.message.new_signal(path, iface, name)
     if not msg then return false end
+    if dest then
+        msg:set_destination(dest)
+    end
     local iter = msg:iter_init_append()
     if not iter then return false end
     for i=1,#args,2 do
