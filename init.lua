@@ -17,6 +17,8 @@ else
     dbus.exit = dbus.raw.exit
 end
 
+local unpack = unpack or table.unpack
+
 function dbus.signal_handler(signal, ...)
     signal.events = ((dbus.signals[signal.bus] or {})[signal.interface] or {}).events
     if not signal.events then return end
