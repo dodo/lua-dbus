@@ -1,6 +1,6 @@
 package = "lua-dbus"
 version = "scm-0"
-source = { url = "git://github.com/dodo/lua-dbus.git" }
+source = { url = "git://github.com/logiceditor-com/lua-dbus.git" }
 description = {
    summary = "convenient dbus api",
    detailed = "Convenient dbus api in lua.",
