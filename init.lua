@@ -17,6 +17,8 @@ else
     dbus.exit = dbus.raw.exit
 end
 
+local unpack = unpack or table.unpack
+
 function dbus.signal_handler(signal, ...)
     signal.events = ((dbus.signals[signal.bus] or {})[signal.interface] or {}).events
     if not signal.events then return end
@@ -148,6 +150,17 @@ function dbus.off(name, callback, opts)
         end
     end
     return false
+end
+
+
+function dbus.signal(name, opts)
+    if not dbus.raw.emit_signal then return end
+    opts = opts or {}
+    opts.bus = opts.bus or "session"
+    return dbus.raw.emit_signal(
+      opts.bus, opts.destination, opts.path, opts.interface, name,
+      unpack(opts.args or {})
+    )
 end
 
 
