@@ -8,11 +8,14 @@ local dbus = {}
 
 -- dbus loop
 
-function dbus.init()
+function dbus.init(need_private_connections)
     dbus.signals = {}
     dbus.callbacks = {}
-    dbus.session = ldbus.bus.get('session')
-    dbus.system  = ldbus.bus.get('system')
+    local getter = need_private_connections
+      and ldbus.bus.get_private
+      or ldbus.bus.get
+    dbus.session = getter('session')
+    dbus.system  = getter('system')
 end
 
 function dbus.exit()
