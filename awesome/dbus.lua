@@ -13,8 +13,8 @@ local dbus = {}
 function dbus.init()
     dbus.signals = {}
     dbus.callbacks = {}
-    dbus.session = ldbus.bus.get('session')
-    dbus.system  = ldbus.bus.get('system')
+    dbus.session = ldbus.bus.get_private('session')
+    dbus.system  = ldbus.bus.get_private('system')
 end
 
 function dbus.exit()
