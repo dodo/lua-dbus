@@ -267,7 +267,6 @@ function dbus.disconnect_signal(name, callback)
 end
 
 function dbus.emit_signal(bus_name, dest, path, iface, name, ...)
-    print('dbus.emit_signal', bus_name, dest, path, iface, name, ...)
     local args = {...}
     local bus = dbus.get_bus(bus_name)
     if not bus then return false end
