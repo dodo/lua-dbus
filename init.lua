@@ -173,6 +173,12 @@ function dbus.call(name, callback, opts)
     opts.type = opts.type or "method_call"
     opts.bus = opts.bus or "session"
     callback = callback or opts.callback
+    local error_callback = opts.error_callback or function(error_text)
+        local error_message = ("Error in method %s.%s: %s"):format(
+            opts.interface, name, error_text
+        )
+        error(error_message)
+    end
     local serial = dbus.raw.call_method(opts.bus,
         opts.destination, opts.path, opts.interface, name,
         unpack(opts.args or {}))
@@ -183,9 +189,13 @@ function dbus.call(name, callback, opts)
             type = opts.type,
             bus = opts.bus,
         }
-        params.handler = function (_, ...)
+        params.handler = function (signal, ...)
             dbus.off(key, params.handler, params)
-            callback(...)
+            if signal.type == "error" then
+                error_callback(...)
+            else
+                callback(...)
+            end
         end
         dbus.on(key, params.handler, params)
     end

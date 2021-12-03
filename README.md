@@ -35,6 +35,9 @@ end, {
     interface = signal_opts.interface,
     -- just luckily matches here for demonstration purpose
     destination = signal_opts.interface,
+    error_callback = function(error_text)
+        -- react on error here
+    end,
 })
 
 
