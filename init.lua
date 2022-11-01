@@ -151,6 +151,17 @@ function dbus.off(name, callback, opts)
 end
 
 
+function dbus.signal(name, opts)
+    if not dbus.raw.emit_signal then return end
+    opts = opts or {}
+    opts.bus = opts.bus or "session"
+    return dbus.raw.emit_signal(
+      opts.bus, opts.destination, opts.path, opts.interface, name,
+      unpack(opts.args or {})
+    )
+end
+
+
 function dbus.call(name, callback, opts)
     if not dbus.raw.call_method then return end
     if callback and type(callback) ~= 'function' then
